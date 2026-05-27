@@ -1,7 +1,11 @@
-[package]
-name = "type-theory"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = [
+  "crates/parsers",
+  "crates/simply_typed_lambda_calculus",
+  "examples/repl",
+]
 
-[dependencies]
-rustyline = "18.0.0"
+[workspace.dependencies]
+chumsky = "0.13.0"
+ariadne = "0.6.0"
