@@ -19,8 +19,25 @@ fn check_type_match<'src>(type1: &Type, type2: &Type, span: &SimpleSpan) -> Resu
 
 pub fn check_term<'src>(term: &Term<'src>, context: &Context) -> Result<'src, Type> {
     match term {
+        /*
+         *
+         * ───────────
+         * Γ ⊢ () : ()
+         */
         Term::Unit => Ok(Type::Unit),
+
+        /*
+         *
+         * ───────────────────
+         * Γ ⊢ <integer> : Int
+         */
         Term::Int { value: _ } => Ok(Type::Int),
+
+        /*
+         *      Γ, x : σ ⊢ e : τ
+         * ────────────────────────────
+         * Γ ⊢ (lam x : σ. e) : (σ → τ)
+         */
         Term::Lam {
             param_name,
             param_type,
@@ -34,10 +51,22 @@ pub fn check_term<'src>(term: &Term<'src>, context: &Context) -> Result<'src, Ty
                 body_type: Box::new(body_type),
             })
         }
+
+        /*
+         * x : σ ∈ Γ
+         * ─────────
+         * Γ ⊢ x : σ
+         */
         Term::Var { name } => context
             .get(name.inner)
             .cloned()
             .ok_or_else(|| vec![Error::custom(name.span, "unbound variable")]),
+
+        /*
+         * Γ, e₁ : σ → τ  Γ ⊢ e₂ : σ
+         * ─────────────────────────
+         *   Γ ⊢ e₁ e₂ : (σ → τ)
+         */
         Term::App { callee, arg } => {
             let Type::Fun {
                 param_type,
