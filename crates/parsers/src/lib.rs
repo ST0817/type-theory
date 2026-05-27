@@ -13,6 +13,7 @@ pub fn name<'src>() -> impl Parser<'src, &'src str, Name<'src>, Err<Error<'src>>
     any()
         .filter(char::is_ascii_alphabetic)
         .repeated()
+        .at_least(1)
         .to_slice()
         .spanned()
 }

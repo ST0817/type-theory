@@ -4,15 +4,19 @@ use chumsky::{
     Parser,
     extra::Err,
     prelude::{Recursive, choice, just},
+    span::{SimpleSpan, SpanWrap, Spanned},
     text::ascii::keyword,
 };
 use parsers::{Error, Name, int, name};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Type {
     Unit,
     Int,
-    Fun { param: Box<Self>, body: Box<Self> },
+    Fun {
+        param_type: Box<Self>,
+        body_type: Box<Self>,
+    },
 }
 
 impl Display for Type {
@@ -20,7 +24,13 @@ impl Display for Type {
         match self {
             Self::Unit => write!(f, "()"),
             Self::Int => write!(f, "Int",),
-            Self::Fun { param, body } => write!(f, "({param} → {body})"),
+            Self::Fun {
+                param_type,
+                body_type,
+            } => match param_type.as_ref() {
+                Self::Fun { .. } => write!(f, "({param_type}) → {body_type}"),
+                _ => write!(f, "{param_type} → {body_type}"),
+            },
         }
     }
 }
@@ -38,6 +48,10 @@ pub enum Term<'src> {
     Var {
         name: Name<'src>,
     },
+    App {
+        callee: Spanned<Box<Self>>,
+        arg: Spanned<Box<Self>>,
+    },
 }
 
 impl Display for Term<'_> {
@@ -51,6 +65,10 @@ impl Display for Term<'_> {
                 param_type,
                 body,
             } => write!(f, "λ{} : {}. {}", param_name.inner, param_type, body),
+            Self::App { callee, arg } => match callee.as_ref() {
+                Self::Lam { .. } => write!(f, "({}) {}", callee.inner, arg.inner),
+                _ => write!(f, "{} {}", callee.inner, arg.inner),
+            },
         }
     }
 }
@@ -69,8 +87,8 @@ fn fun_type<'src>(
     ty.clone().padded().foldl(
         just("->").padded().ignore_then(ty).padded().repeated(),
         |param, body| Type::Fun {
-            param: Box::new(param),
-            body: Box::new(body),
+            param_type: Box::new(param),
+            body_type: Box::new(body),
         },
     )
 }
@@ -113,13 +131,34 @@ fn var_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>
     name().map(|name| Term::Var { name })
 }
 
+fn app_term<'src>(
+    term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
+) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
+    term.clone()
+        .spanned()
+        .padded()
+        .foldl(term.spanned().padded().repeated(), |callee, arg| {
+            let span: SimpleSpan = (callee.span.start..arg.span.end).into();
+            Term::App {
+                callee: Box::new(callee.inner).with_span(callee.span),
+                arg: Box::new(arg.inner).with_span(arg.span),
+            }
+            .with_span(span)
+        })
+        .map(|spanned| spanned.inner)
+}
+
 pub fn term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> {
     let mut term = Recursive::declare();
-    term.define(choice((
-        unit_term(),
-        int_term(),
-        lam_term(term.clone()),
-        var_term(),
-    )));
+    term.define({
+        let atom = choice((
+            unit_term(),
+            int_term(),
+            lam_term(term.clone()),
+            var_term(),
+            term.clone().delimited_by(just('(').padded(), just(')')),
+        ));
+        app_term(atom)
+    });
     term
 }
