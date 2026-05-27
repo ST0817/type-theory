@@ -1,25 +1,31 @@
-use std::fmt::Display;
+use std::collections::HashMap;
 
-use crate::parser::Term;
+use parsers::{Error, Result};
 
-#[derive(Clone)]
-pub enum RawType {
-    Unit,
-    Int,
-}
+use crate::parser::{Term, Type};
 
-impl Display for RawType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Unit => write!(f, "()"),
-            Self::Int => write!(f, "Int"),
-        }
-    }
-}
+pub type Context = HashMap<String, Type>;
 
-pub fn check_term<'src>(term: &Term) -> RawType {
+pub fn check_term<'src>(term: &Term<'src>, context: &Context) -> Result<'src, Type> {
     match term {
-        Term::Unit => RawType::Unit,
-        Term::Int { value: _ } => RawType::Int,
+        Term::Unit => Ok(Type::Unit),
+        Term::Int { value: _ } => Ok(Type::Int),
+        Term::Lam {
+            param_name,
+            param_type,
+            body,
+        } => {
+            let mut new_context = context.clone();
+            new_context.insert(param_name.to_string(), param_type.clone());
+            let body_type = check_term(body, &new_context)?;
+            Ok(Type::Fun {
+                param: Box::new(param_type.clone()),
+                body: Box::new(body_type),
+            })
+        }
+        Term::Var { name } => context
+            .get(name.inner)
+            .cloned()
+            .ok_or_else(|| vec![Error::custom(name.span, "unbound variable")]),
     }
 }
