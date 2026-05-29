@@ -30,7 +30,7 @@ fn main() -> ExitCode {
             Ok(input) if !input.is_empty() => {
                 editor.add_history_entry(&input).unwrap();
 
-                if let Err(errors) = simply_typed_lambda_calculus::run(&input) {
+                if let Err(errors) = system_f::run(&input) {
                     print_errors(&errors, REPL_ID, &input);
                 }
             }
