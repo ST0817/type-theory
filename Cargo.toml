@@ -2,7 +2,7 @@
 resolver = "3"
 members = [
   "crates/parsers",
-  "crates/simply_typed_lambda_calculus",
+  "crates/simply_typed_lambda_calculus", "crates/system_f",
   "examples/repl",
 ]
 

@@ -255,6 +255,7 @@ dependencies = [
  "parsers",
  "rustyline",
  "simply_typed_lambda_calculus",
+ "system_f",
 ]
 
 [[package]]
@@ -350,6 +351,14 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "system_f"
+version = "0.1.0"
+dependencies = [
+ "chumsky",
+ "parsers",
 ]
 
 [[package]]

@@ -8,3 +8,4 @@ ariadne.workspace = true
 parsers = { version = "0.1.0", path = "../../crates/parsers" }
 rustyline = "18.0.0"
 simply_typed_lambda_calculus = { path = "../../crates/simply_typed_lambda_calculus" }
+system_f = { version = "0.1.0", path = "../../crates/system_f" }
