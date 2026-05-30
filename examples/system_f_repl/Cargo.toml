@@ -1,11 +1,11 @@
 [package]
-name = "repl"
+name = "system_f_repl"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 ariadne.workspace = true
+chumsky.workspace = true
 parsers = { version = "0.1.0", path = "../../crates/parsers" }
-rustyline = "18.0.0"
-simply_typed_lambda_calculus = { path = "../../crates/simply_typed_lambda_calculus" }
+rustyline.workspace = true
 system_f = { version = "0.1.0", path = "../../crates/system_f" }

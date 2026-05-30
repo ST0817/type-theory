@@ -1,0 +1,11 @@
+[package]
+name = "simply_typed_lambda_calculus_repl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ariadne.workspace = true
+chumsky.workspace = true
+parsers = { version = "0.1.0", path = "../../crates/parsers" }
+rustyline.workspace = true
+simply_typed_lambda_calculus = { version = "0.1.0", path = "../../crates/simply_typed_lambda_calculus" }

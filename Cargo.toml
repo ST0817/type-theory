@@ -2,10 +2,13 @@
 resolver = "3"
 members = [
   "crates/parsers",
-  "crates/simply_typed_lambda_calculus", "crates/system_f",
-  "examples/repl",
+  "crates/simply_typed_lambda_calculus",
+  "crates/system_f",
+  "examples/simply_typed_lambda_calculus_repl",
+  "examples/system_f_repl",
 ]
 
 [workspace.dependencies]
 chumsky = "0.13.0"
 ariadne = "0.6.0"
+rustyline = "18.0.0"

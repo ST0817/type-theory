@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chumsky::span::SimpleSpan;
-use parsers::{Error, Result};
+use parsers::{Error, Name, Result};
 
 use crate::parser::{Term, Type};
 
@@ -80,4 +80,14 @@ pub fn check_term<'src>(term: &Term<'src>, context: &Context) -> Result<'src, Ty
             Ok(*body_type)
         }
     }
+}
+
+pub fn check_def<'src>(
+    name: Name<'src>,
+    term: &Term<'src>,
+    context: &mut Context,
+) -> Result<'src, ()> {
+    let ty = check_term(term, context)?;
+    context.insert(name.to_string(), ty);
+    Ok(())
 }
