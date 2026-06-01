@@ -1,0 +1,11 @@
+[package]
+name = "calculus_of_constructions_repl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ariadne.workspace = true
+calculus_of_constructions = { version = "0.1.0", path = "../../crates/calculus_of_constructions" }
+chumsky.workspace = true
+parsers = { version = "0.1.0", path = "../../crates/parsers" }
+rustyline.workspace = true

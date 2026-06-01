@@ -10,8 +10,9 @@ use chumsky::{
     span::{self, SimpleSpan, SpanWrap},
     text::ascii::keyword,
 };
-use parsers::{Error, Name, int, name};
+use parsers::{Error, int, name};
 
+#[derive(Clone)]
 pub struct Spanned<T>(span::Spanned<T>);
 
 impl<T: PartialEq> PartialEq for Spanned<T> {
@@ -45,7 +46,7 @@ pub enum Type<'src> {
     Unit,
     Int,
     Forall {
-        param_name: Name<'src>,
+        param_name: Spanned<&'src str>,
         body_type: Box<Self>,
     },
     Fun {
@@ -53,7 +54,7 @@ pub enum Type<'src> {
         body_type: Box<Self>,
     },
     Var {
-        name: Name<'src>,
+        name: Spanned<&'src str>,
     },
 }
 
@@ -84,16 +85,16 @@ pub enum Term<'src> {
         value: usize,
     },
     Lam {
-        param_name: Name<'src>,
+        param_name: Spanned<&'src str>,
         param_type: Type<'src>,
         body: Box<Self>,
     },
     TypeLam {
-        param_name: Name<'src>,
+        param_name: Spanned<&'src str>,
         body: Box<Self>,
     },
     Var {
-        name: Name<'src>,
+        name: Spanned<&'src str>,
     },
     App {
         callee: Spanned<Box<Self>>,
@@ -148,7 +149,7 @@ fn forall_type<'src>(
 ) -> impl Parser<'src, &'src str, Type<'src>, Err<Error<'src>>> + Clone {
     keyword("forall")
         .padded()
-        .ignore_then(name())
+        .ignore_then(name().spanned().map(Into::into))
         .padded()
         .then_ignore(just('.'))
         .padded()
@@ -172,7 +173,7 @@ fn fun_type<'src>(
 }
 
 fn var_type<'src>() -> impl Parser<'src, &'src str, Type<'src>, Err<Error<'src>>> + Clone {
-    name().map(|name| Type::Var { name })
+    name().spanned().map(|name| Type::Var { name: name.into() })
 }
 
 fn ty<'src>() -> impl Parser<'src, &'src str, Type<'src>, Err<Error<'src>>> + Clone {
@@ -203,7 +204,7 @@ fn lam_term<'src>(
 ) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("lam")
         .padded()
-        .ignore_then(name())
+        .ignore_then(name().spanned().map(Into::into))
         .padded()
         .then_ignore(just(':'))
         .padded()
@@ -224,7 +225,7 @@ fn type_lam_term<'src>(
 ) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("Lam")
         .padded()
-        .ignore_then(name())
+        .ignore_then(name().spanned().map(Into::into))
         .padded()
         .then_ignore(just('.'))
         .padded()
@@ -233,7 +234,7 @@ fn type_lam_term<'src>(
 }
 
 fn var_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
-    name().map(|name| Term::Var { name })
+    name().spanned().map(|name| Term::Var { name: name.into() })
 }
 
 fn app_term<'src>(

@@ -7,7 +7,7 @@ use chumsky::{
     span::{SimpleSpan, SpanWrap, Spanned},
     text::ascii::keyword,
 };
-use parsers::{Error, Name, int, name};
+use parsers::{Error, int, name};
 
 #[derive(Clone, PartialEq)]
 pub enum Type {
@@ -41,12 +41,12 @@ pub enum Term<'src> {
         value: usize,
     },
     Lam {
-        param_name: Name<'src>,
+        param_name: Spanned<&'src str>,
         param_type: Type,
         body: Box<Self>,
     },
     Var {
-        name: Name<'src>,
+        name: Spanned<&'src str>,
     },
     App {
         callee: Spanned<Box<Self>>,
@@ -111,7 +111,7 @@ fn lam_term<'src>(
 ) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("lam")
         .padded()
-        .ignore_then(name())
+        .ignore_then(name().spanned())
         .padded()
         .then_ignore(just(':'))
         .padded()
@@ -128,7 +128,7 @@ fn lam_term<'src>(
 }
 
 fn var_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
-    name().map(|name| Term::Var { name })
+    name().spanned().map(|name| Term::Var { name })
 }
 
 fn app_term<'src>(

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use chumsky::span::SimpleSpan;
-use parsers::{Error, Name, Result};
+use chumsky::span::{SimpleSpan, Spanned};
+use parsers::{Error, Result};
 
 use crate::parser::{Term, Type};
 
@@ -83,7 +83,7 @@ pub fn check_term<'src>(term: &Term<'src>, context: &Context) -> Result<'src, Ty
 }
 
 pub fn check_def<'src>(
-    name: Name<'src>,
+    name: Spanned<&'src str>,
     term: &Term<'src>,
     context: &mut Context,
 ) -> Result<'src, ()> {

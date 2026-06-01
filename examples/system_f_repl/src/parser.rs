@@ -2,14 +2,20 @@ use chumsky::{
     Parser,
     extra::Err,
     prelude::{choice, just},
+    span::Spanned,
     text::ascii::keyword,
 };
-use parsers::{Error, Name, name};
+use parsers::{Error, name};
 use system_f::parser::{Term, term};
 
 pub enum ReplCmd<'src> {
-    Def { name: Name<'src>, term: Term<'src> },
-    Term { term: Term<'src> },
+    Def {
+        name: Spanned<&'src str>,
+        term: Term<'src>,
+    },
+    Term {
+        term: Term<'src>,
+    },
 }
 
 fn def_repl_cmd<'src>() -> impl Parser<'src, &'src str, ReplCmd<'src>, Err<Error<'src>>> {
@@ -17,7 +23,7 @@ fn def_repl_cmd<'src>() -> impl Parser<'src, &'src str, ReplCmd<'src>, Err<Error
         .padded()
         .ignore_then(keyword("def"))
         .padded()
-        .ignore_then(name())
+        .ignore_then(name().spanned().map(Into::into))
         .padded()
         .then_ignore(just(":="))
         .padded()

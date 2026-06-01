@@ -1,3 +1,4 @@
+use calculus_of_constructions::parser::{Term, term};
 use chumsky::{
     Parser,
     extra::Err,
@@ -6,15 +7,14 @@ use chumsky::{
     text::ascii::keyword,
 };
 use parsers::{Error, name};
-use simply_typed_lambda_calculus::parser::{Term, term};
 
 pub enum ReplCmd<'src> {
     Def {
         name: Spanned<&'src str>,
-        term: Term<'src>,
+        term: Term,
     },
     Term {
-        term: Term<'src>,
+        term: Term,
     },
 }
 

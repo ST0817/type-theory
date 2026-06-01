@@ -1,9 +1,10 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/calculus_of_constructions",
   "crates/parsers",
   "crates/simply_typed_lambda_calculus",
-  "crates/system_f",
+  "crates/system_f", "examples/calculus_of_constructions_repl",
   "examples/simply_typed_lambda_calculus_repl",
   "examples/system_f_repl",
 ]
