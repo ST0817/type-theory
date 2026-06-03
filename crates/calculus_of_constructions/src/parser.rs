@@ -62,10 +62,17 @@ impl Display for Term<'_> {
                 "Π{} : {}. {}",
                 param_name, param_type.inner, body_type.inner
             ),
-            Self::App { callee, arg } => match callee.as_ref() {
-                Self::Lam { .. } => write!(f, "({}) {}", callee.inner, arg.inner),
-                _ => write!(f, "{} {}", callee.inner, arg.inner),
-            },
+            Self::App { callee, arg } => {
+                match callee.as_ref() {
+                    Self::Lam { .. } => write!(f, "({}) ", callee.inner)?,
+                    _ => write!(f, "{} ", callee.inner)?,
+                }
+                match arg.as_ref() {
+                    Self::App { .. } => write!(f, "({})", arg.inner)?,
+                    _ => write!(f, "{}", arg.inner)?,
+                }
+                Ok(())
+            }
         }
     }
 }

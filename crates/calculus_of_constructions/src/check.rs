@@ -85,10 +85,17 @@ impl Display for CheckedTerm {
                 param_type,
                 body_type,
             } => write!(f, "Π{param_name} : {param_type}. {body_type}",),
-            Self::App { callee, arg } => match callee.as_ref() {
-                Self::Lam { .. } => write!(f, "({callee}) {arg}"),
-                _ => write!(f, "{callee} {arg}"),
-            },
+            Self::App { callee, arg } => {
+                match **callee {
+                    Self::Lam { .. } => write!(f, "({callee}) ")?,
+                    _ => write!(f, "{callee} ")?,
+                }
+                match **arg {
+                    Self::App { .. } => write!(f, "({arg})")?,
+                    _ => write!(f, "{arg}")?,
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -106,7 +113,7 @@ impl CheckedTerm {
                 body,
             } => Self::Lam {
                 param_name: param_name.clone(),
-                param_type: param_type.clone(),
+                param_type: Box::new(param_type.shift(value, cutoff)),
                 body: Box::new(body.shift(value, cutoff + 1)),
             },
             Self::Pi {
@@ -115,7 +122,7 @@ impl CheckedTerm {
                 body_type,
             } => Self::Pi {
                 param_name: param_name.clone(),
-                param_type: param_type.clone(),
+                param_type: Box::new(param_type.shift(value, cutoff)),
                 body_type: Box::new(body_type.shift(value, cutoff + 1)),
             },
             Self::App { callee, arg } => Self::App {
@@ -520,11 +527,21 @@ pub fn check_term<'src>(
 }
 
 pub fn check_def<'src>(
-    name: Spanned<&'src str>,
-    term: &Term,
+    name: &'src str,
+    term: &Term<'src>,
     context: &mut Context,
 ) -> Result<'src, ()> {
     let (_, ty) = check_term(term, context)?;
     context.insert(name.to_string(), ty);
+    Ok(())
+}
+
+pub fn check_axiom<'src>(
+    name: &'src str,
+    term: &Spanned<Term<'src>>,
+    context: &mut Context,
+) -> Result<'src, ()> {
+    let (checked_term, _) = check_term(term, context)?;
+    context.insert(name.to_string(), checked_term);
     Ok(())
 }

@@ -3,7 +3,7 @@ mod parser;
 use std::process::ExitCode;
 
 use ariadne::{Color, Config, IndexType, Label, Report, ReportKind, Source};
-use calculus_of_constructions::check::{Context, check_def, check_term};
+use calculus_of_constructions::check::{Context, check_axiom, check_def, check_term};
 use chumsky::Parser;
 use parsers::{Error, Result};
 use rustyline::{DefaultEditor, error::ReadlineError};
@@ -31,6 +31,7 @@ fn print_errors(errors: &Vec<Error>, id: &str, src: &str) {
 fn repl_process<'src>(input: &'src str, context: &mut Context) -> Result<'src, ()> {
     match parser::repl_cmd().parse(input).into_result()? {
         ReplCmd::Def { name, term } => check_def(name, &term, context),
+        ReplCmd::Axiom { name, term } => check_axiom(name, &term, context),
         ReplCmd::Term { term } => {
             let (checked_term, ty) = check_term(&term, context)?;
             println!("{checked_term}");
