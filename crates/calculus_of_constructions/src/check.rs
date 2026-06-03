@@ -126,19 +126,21 @@ impl CheckedTerm {
         }
     }
 
-    fn subst_at(&self, term: &CheckedTerm, index: usize) -> Self {
+    fn subst_at(&self, term: &CheckedTerm, depth: usize) -> Self {
         match self {
-            Self::Var {
-                index: var_index, ..
-            } if *var_index == index => term.shift(index as isize, 0),
+            Self::Var { index, .. } if *index == depth => term.shift(depth as isize, 0),
+            Self::Var { name, index } if *index > depth => Self::Var {
+                name: name.clone(),
+                index: index - 1,
+            },
             Self::Lam {
                 param_name,
                 param_type,
                 body,
             } => Self::Lam {
                 param_name: param_name.clone(),
-                param_type: Box::new(param_type.subst_at(term, index)),
-                body: Box::new(body.subst_at(term, index + 1)),
+                param_type: Box::new(param_type.subst_at(term, depth)),
+                body: Box::new(body.subst_at(term, depth + 1)),
             },
             Self::Pi {
                 param_name,
@@ -146,12 +148,12 @@ impl CheckedTerm {
                 body_type,
             } => Self::Pi {
                 param_name: param_name.clone(),
-                param_type: Box::new(param_type.subst_at(term, index)),
-                body_type: Box::new(body_type.subst_at(term, index + 1)),
+                param_type: Box::new(param_type.subst_at(term, depth)),
+                body_type: Box::new(body_type.subst_at(term, depth + 1)),
             },
             Self::App { callee, arg } => Self::App {
-                callee: Box::new(callee.subst_at(term, index)),
-                arg: Box::new(arg.subst_at(term, index)),
+                callee: Box::new(callee.subst_at(term, depth)),
+                arg: Box::new(arg.subst_at(term, depth)),
             },
             _ => self.clone(),
         }
@@ -309,6 +311,27 @@ fn test_subst() {
             param_name: "y".to_string(),
             param_type: Box::new(CheckedTerm::IntType),
             body: Box::new(CheckedTerm::Int { value: 42 })
+        }
+    );
+    assert_eq!(
+        // lam z : Int. x (context = [x : Int, y : Int = 42])
+        CheckedTerm::Lam {
+            param_name: "z".to_string(),
+            param_type: Box::new(CheckedTerm::IntType),
+            body: Box::new(CheckedTerm::Var {
+                name: "x".to_string(),
+                index: 2
+            })
+        }
+        .subst(&CheckedTerm::Int { value: 42 }),
+        // lam z : Int. x (context = [x : Int])
+        CheckedTerm::Lam {
+            param_name: "z".to_string(),
+            param_type: Box::new(CheckedTerm::IntType),
+            body: Box::new(CheckedTerm::Var {
+                name: "x".to_string(),
+                index: 1
+            })
         }
     );
     assert_eq!(
