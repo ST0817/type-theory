@@ -10,7 +10,7 @@ use chumsky::{
 use parsers::{Error, int, name};
 
 #[derive(Clone, PartialEq)]
-pub enum Term {
+pub enum Term<'src> {
     Sort {
         level: usize,
     },
@@ -21,17 +21,17 @@ pub enum Term {
     },
     IntType,
     Lam {
-        param_name: String,
+        param_name: &'src str,
         param_type: Spanned<Box<Self>>,
         body: Box<Self>,
     },
     Pi {
-        param_name: String,
+        param_name: &'src str,
         param_type: Spanned<Box<Self>>,
         body_type: Spanned<Box<Self>>,
     },
     Var {
-        name: Spanned<String>,
+        name: Spanned<&'src str>,
     },
     App {
         callee: Spanned<Box<Self>>,
@@ -39,7 +39,7 @@ pub enum Term {
     },
 }
 
-impl Display for Term {
+impl Display for Term<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Self::Sort { level } => write!(f, "Sort {level}"),
@@ -70,35 +70,35 @@ impl Display for Term {
     }
 }
 
-fn sort_term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+fn sort_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("Sort")
         .padded()
         .ignore_then(int())
         .map(|level| Term::Sort { level })
 }
 
-fn unit_term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+fn unit_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     just("()").map(|_| Term::Unit)
 }
 
-fn unit_type_term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+fn unit_type_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("Unit").map(|_| Term::UnitType)
 }
 
-fn int_term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+fn int_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     int().map(|value| Term::Int { value })
 }
 
-fn int_type_term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+fn int_type_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("Int").map(|_| Term::IntType)
 }
 
 fn lam_term<'src>(
-    term: impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone,
-) -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+    term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
+) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("lam")
         .padded()
-        .ignore_then(name().map(ToString::to_string))
+        .ignore_then(name())
         .padded()
         .then_ignore(just(':'))
         .padded()
@@ -115,11 +115,11 @@ fn lam_term<'src>(
 }
 
 fn pi_term<'src>(
-    term: impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone,
-) -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+    term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
+) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("pi")
         .padded()
-        .ignore_then(name().map(ToString::to_string))
+        .ignore_then(name())
         .padded()
         .then_ignore(just(':'))
         .padded()
@@ -135,16 +135,13 @@ fn pi_term<'src>(
         })
 }
 
-fn var_term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
-    name()
-        .map(ToString::to_string)
-        .spanned()
-        .map(|name| Term::Var { name })
+fn var_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
+    name().spanned().map(|name| Term::Var { name })
 }
 
 fn app_term<'src>(
-    term: impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone,
-) -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> + Clone {
+    term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
+) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     term.clone()
         .spanned()
         .padded()
@@ -159,7 +156,7 @@ fn app_term<'src>(
         .map(|spanned| spanned.inner)
 }
 
-pub fn term<'src>() -> impl Parser<'src, &'src str, Term, Err<Error<'src>>> {
+pub fn term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> {
     let mut term = Recursive::declare();
     term.define({
         let atom = choice((

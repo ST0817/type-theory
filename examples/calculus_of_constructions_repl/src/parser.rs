@@ -11,10 +11,10 @@ use parsers::{Error, name};
 pub enum ReplCmd<'src> {
     Def {
         name: Spanned<&'src str>,
-        term: Term,
+        term: Term<'src>,
     },
     Term {
-        term: Term,
+        term: Term<'src>,
     },
 }
 

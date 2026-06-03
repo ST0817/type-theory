@@ -32,8 +32,8 @@ fn repl_process<'src>(input: &'src str, context: &mut Context) -> Result<'src, (
     match parser::repl_cmd().parse(input).into_result()? {
         ReplCmd::Def { name, term } => check_def(name, &term, context),
         ReplCmd::Term { term } => {
-            println!("{term}");
-            let ty = check_term(&term, context)?;
+            let (checked_term, ty) = check_term(&term, context)?;
+            println!("{checked_term}");
             println!("=> {ty}");
             Ok(())
         }
