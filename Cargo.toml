@@ -14,5 +14,4 @@ members = [
 chumsky = "0.13.0"
 ariadne = "0.6.0"
 rustyline = "18.0.0"
-indexmap = "2.14.0"
 ignorable = "0.1.4"

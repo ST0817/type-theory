@@ -1,7 +1,5 @@
-use std::fmt::{self, Display, Formatter};
-
 use chumsky::{
-    Parser,
+    IterParser, Parser,
     extra::Err,
     prelude::{Recursive, choice, just},
     span::{SimpleSpan, SpanWrap, Spanned},
@@ -39,49 +37,24 @@ pub enum Term<'src> {
     },
 }
 
-impl Display for Term<'_> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            Self::Sort { level } => write!(f, "Sort {level}"),
-            Self::Unit => write!(f, "()"),
-            Self::UnitType => write!(f, "Unit"),
-            Self::Int { value } => write!(f, "{value}"),
-            Self::IntType => write!(f, "Int"),
-            Self::Var { name } => write!(f, "{}", name.inner),
-            Self::Lam {
-                param_name,
-                param_type,
-                body,
-            } => write!(f, "λ{} : {}. {}", param_name, param_type.inner, body),
-            Self::Pi {
-                param_name,
-                param_type,
-                body_type,
-            } => write!(
-                f,
-                "Π{} : {}. {}",
-                param_name, param_type.inner, body_type.inner
-            ),
-            Self::App { callee, arg } => {
-                match callee.as_ref() {
-                    Self::Lam { .. } => write!(f, "({}) ", callee.inner)?,
-                    _ => write!(f, "{} ", callee.inner)?,
-                }
-                match arg.as_ref() {
-                    Self::App { .. } => write!(f, "({})", arg.inner)?,
-                    _ => write!(f, "{}", arg.inner)?,
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
 fn sort_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("Sort")
         .padded()
         .ignore_then(int())
         .map(|level| Term::Sort { level })
+}
+
+fn prop_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
+    keyword("Prop").map(|_| Term::Sort { level: 0 })
+}
+
+fn type_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
+    keyword("Type")
+        .padded()
+        .ignore_then(int().or_not())
+        .map(|level| Term::Sort {
+            level: level.unwrap_or(0) + 1,
+        })
 }
 
 fn unit_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
@@ -121,7 +94,7 @@ fn lam_term<'src>(
         })
 }
 
-fn pi_term<'src>(
+fn pi_term_with_name<'src>(
     term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
 ) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
     keyword("pi")
@@ -146,6 +119,27 @@ fn var_term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>
     name().spanned().map(|name| Term::Var { name })
 }
 
+fn pi_term_no_name<'src>(
+    term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
+) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
+    term.clone()
+        .spanned()
+        .padded()
+        .then_ignore(just("->"))
+        .padded()
+        .repeated()
+        .foldr(term.spanned(), |param_type, body_type| {
+            let span: SimpleSpan = (param_type.span.start..body_type.span.end).into();
+            Term::Pi {
+                param_name: "",
+                param_type: Box::new(param_type.inner).with_span(param_type.span),
+                body_type: Box::new(body_type.inner).with_span(body_type.span),
+            }
+            .with_span(span)
+        })
+        .map(|spanned| spanned.inner)
+}
+
 fn app_term<'src>(
     term: impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone,
 ) -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> + Clone {
@@ -166,18 +160,21 @@ fn app_term<'src>(
 pub fn term<'src>() -> impl Parser<'src, &'src str, Term<'src>, Err<Error<'src>>> {
     let mut term = Recursive::declare();
     term.define({
-        let atom = choice((
+        let term = choice((
             sort_term(),
+            prop_term(),
+            type_term(),
             unit_term(),
             unit_type_term(),
             int_term(),
             int_type_term(),
             lam_term(term.clone()),
-            pi_term(term.clone()),
+            pi_term_with_name(term.clone()),
             var_term(),
             term.clone().delimited_by(just('(').padded(), just(')')),
         ));
-        app_term(atom)
+        let term = app_term(term);
+        pi_term_no_name(term)
     });
     term
 }

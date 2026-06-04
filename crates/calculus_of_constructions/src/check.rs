@@ -5,7 +5,6 @@ use std::{
 
 use chumsky::span::{SimpleSpan, Spanned};
 use ignorable::PartialEq;
-use indexmap::IndexMap;
 use parsers::{Error, Result};
 
 use crate::parser::Term;
@@ -69,7 +68,9 @@ fn test_alpha_eq() {
 impl Display for CheckedTerm {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::Sort { level } => write!(f, "Sort {level}"),
+            Self::Sort { level: 0 } => write!(f, "Prop"),
+            Self::Sort { level: 1 } => write!(f, "Type"),
+            Self::Sort { level } => write!(f, "Type {}", level - 1),
             Self::Unit => write!(f, "()"),
             Self::UnitType => write!(f, "Unit"),
             Self::Int { value } => write!(f, "{value}"),
@@ -84,7 +85,18 @@ impl Display for CheckedTerm {
                 param_name,
                 param_type,
                 body_type,
-            } => write!(f, "Π{param_name} : {param_type}. {body_type}",),
+            } => {
+                if param_name.is_empty() {
+                    match **param_type {
+                        Self::Lam { .. } | Self::Pi { .. } => {
+                            write!(f, "({param_type}) → {body_type}")
+                        }
+                        _ => write!(f, "{param_type} → {body_type}"),
+                    }
+                } else {
+                    write!(f, "Π{param_name} : {param_type}. {body_type}")
+                }
+            }
             Self::App { callee, arg } => {
                 match **callee {
                     Self::Lam { .. } => write!(f, "({callee}) ")?,
@@ -342,9 +354,9 @@ fn test_subst() {
         }
     );
     assert_eq!(
-        // pi x : T. T (context = [T : Sort 1 = Int])
+        // T -> T (context = [T : Sort 1 = Int])
         CheckedTerm::Pi {
-            param_name: "x".to_string(),
+            param_name: "".to_string(),
             param_type: Box::new(CheckedTerm::Var {
                 name: "T".to_string(),
                 index: 0
@@ -355,15 +367,16 @@ fn test_subst() {
             })
         }
         .subst(&CheckedTerm::IntType),
+        // Int -> Int (context = [])
         CheckedTerm::Pi {
-            param_name: "x".to_string(),
+            param_name: "".to_string(),
             param_type: Box::new(CheckedTerm::IntType),
             body_type: Box::new(CheckedTerm::IntType)
         }
     );
 }
 
-pub type Context = IndexMap<String, CheckedTerm>;
+pub type Context = Vec<(String, CheckedTerm)>;
 
 fn check_sort<'src>(term: &CheckedTerm, span: &SimpleSpan) -> Result<'src, usize> {
     let CheckedTerm::Sort { level } = term else {
@@ -442,7 +455,7 @@ pub fn check_term<'src>(
             let (checked_param_type, param_type_type) = check_term(param_type, context)?;
             check_sort(&param_type_type, &param_type.span)?;
             let mut new_context = context.clone();
-            new_context.insert(param_name.to_string(), checked_param_type.clone());
+            new_context.push((param_name.to_string(), checked_param_type.clone()));
             let (checked_body, body_type) = check_term(body, &new_context)?;
             let checked_term = CheckedTerm::Lam {
                 param_name: param_name.to_string(),
@@ -470,7 +483,7 @@ pub fn check_term<'src>(
             let (checked_param_type, param_type_type) = check_term(param_type, context)?;
             let param_sort_level = check_sort(&param_type_type, &param_type.span)?;
             let mut new_context = context.clone();
-            new_context.insert(param_name.to_string(), checked_param_type.clone());
+            new_context.push((param_name.to_string(), checked_param_type.clone()));
             let (checked_body_type, body_type_type) = check_term(body_type, &new_context)?;
             let body_sort_level = check_sort(&body_type_type, &body_type.span)?;
             let checked_term = CheckedTerm::Pi {
@@ -490,7 +503,13 @@ pub fn check_term<'src>(
          * Γ ⊢ x : α
          */
         Term::Var { name } => {
-            let Some((index, _, ty)) = context.get_full(name.inner) else {
+            let Some((index, ty)) = context
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, (var_name, _))| var_name == name.inner)
+                .map(|(index, (_, ty))| (index, ty))
+            else {
                 return Err(vec![Error::custom(name.span, "unbound variable")]);
             };
             let checked_term = CheckedTerm::Var {
@@ -532,7 +551,7 @@ pub fn check_def<'src>(
     context: &mut Context,
 ) -> Result<'src, ()> {
     let (_, ty) = check_term(term, context)?;
-    context.insert(name.to_string(), ty);
+    context.push((name.to_string(), ty));
     Ok(())
 }
 
@@ -541,7 +560,8 @@ pub fn check_axiom<'src>(
     term: &Spanned<Term<'src>>,
     context: &mut Context,
 ) -> Result<'src, ()> {
-    let (checked_term, _) = check_term(term, context)?;
-    context.insert(name.to_string(), checked_term);
+    let (checked_term, term_type) = check_term(term, context)?;
+    check_sort(&term_type, &term.span)?;
+    context.push((name.to_string(), checked_term));
     Ok(())
 }
