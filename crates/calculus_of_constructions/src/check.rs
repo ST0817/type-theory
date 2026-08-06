@@ -3,11 +3,16 @@ use std::{
     fmt::{self, Display, Formatter},
 };
 
-use chumsky::span::{SimpleSpan, Spanned};
+use chumsky::{
+    extra,
+    span::{SimpleSpan, Spanned},
+};
 use ignorable::PartialEq;
 use parsers::{Error, Result};
 
 use crate::parser::Term;
+
+pub type FVarId = usize;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CheckedTerm {
@@ -32,9 +37,10 @@ pub enum CheckedTerm {
         param_type: Box<Self>,
         body_type: Box<Self>,
     },
-    Var {
-        #[ignored(PartialEq)]
-        name: String,
+    FVar {
+        id: FVarId,
+    },
+    BVar {
         index: usize,
     },
     App {
@@ -75,7 +81,8 @@ impl Display for CheckedTerm {
             Self::UnitType => write!(f, "Unit"),
             Self::Int { value } => write!(f, "{value}"),
             Self::IntType => write!(f, "Int"),
-            Self::Var { name, index } => write!(f, "{name}#{index}"),
+            Self::FVar { id } => write!(f, "_fvar.{id}"),
+            Self::BVar { index } => write!(f, "#{index}"),
             Self::Lam {
                 param_name,
                 param_type,
@@ -193,6 +200,35 @@ impl CheckedTerm {
             },
             _ => self.clone(),
         }
+    }
+
+    fn instantiate_at(&self, subst: &Self, depth: usize) -> Self {
+        match self {
+            CheckedTerm::Lam {
+                param_name,
+                param_type,
+                body,
+            } => CheckedTerm::Lam {
+                param_name: param_name.clone(),
+                param_type: Box::new(param_type.instantiate_at(subst, depth)),
+                body: Box::new(body.instantiate_at(subst, depth + 1)),
+            },
+            CheckedTerm::Pi {
+                param_name,
+                param_type,
+                body_type,
+            } => CheckedTerm::Pi {
+                param_name: param_name.clone(),
+                param_type: Box::new(param_type.instantiate_at(subst, depth)),
+                body_type: Box::new(body_type.instantiate_at(subst, depth + 1)),
+            },
+            Self::BVar { index } if *index == depth => subst.clone(),
+            _ => self.clone(),
+        }
+    }
+
+    fn instantiate(&self, subst: &Self) -> Self {
+        self.instantiate_at(subst, 0)
     }
 
     fn normalize(&self) -> Self {

@@ -1,0 +1,11 @@
+[package]
+name = "elaborator_kernel_repl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ariadne.workspace = true
+chumsky.workspace = true
+elaborator_kernel = { version = "0.1.0", path = "../../crates/elaborator_kernel" }
+parsers = { version = "0.1.0", path = "../../crates/parsers" }
+rustyline.workspace = true

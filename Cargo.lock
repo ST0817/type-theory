@@ -108,6 +108,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "elaborator_kernel"
+version = "0.1.0"
+dependencies = [
+ "chumsky",
+ "parsers",
+]
+
+[[package]]
+name = "elaborator_kernel_repl"
+version = "0.1.0"
+dependencies = [
+ "ariadne",
+ "chumsky",
+ "elaborator_kernel",
+ "parsers",
+ "rustyline",
+]
+
+[[package]]
 name = "endian-type"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
